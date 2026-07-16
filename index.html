@@ -1,1 +1,535 @@
-<!DOCTYPE html><html><body>test</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Very Next Pty Ltd — Investment Portfolio</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1e293b; font-size: 14px; color-scheme: light; }
+
+  .header { background: #0f172a; color: white; padding: 18px 28px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .header .sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+  .summary-bar { background: #1e293b; color: white; padding: 14px 28px; display: flex; gap: 36px; flex-wrap: wrap; }
+  .summary-item { display: flex; flex-direction: column; gap: 2px; }
+  .summary-item .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+  .summary-item .value { font-size: 18px; font-weight: 700; }
+  .summary-item .change { font-size: 12px; }
+  .pos { color: #4ade80; }
+  .neg { color: #f87171; }
+  .neutral { color: #94a3b8; }
+
+  .content { padding: 20px 28px; max-width: 1400px; margin: 0 auto; }
+
+  .card { background: white; border-radius: 10px; padding: 18px 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px; }
+  .card h2 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .top-row { grid-template-columns: 1fr; } }
+
+  .facility-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 700px) { .facility-grid { grid-template-columns: repeat(2, 1fr); } }
+  .facility-item { background: #f8fafc; border-radius: 8px; padding: 12px 14px; }
+  .facility-item .fl { font-size: 11px; color: #64748b; }
+  .facility-item .fv { font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 3px; }
+  .facility-item.highlight { background: #eff6ff; }
+  .facility-item.highlight .fv { color: #1d4ed8; }
+  .facility-item.warn .fv { color: #d97706; }
+
+  .fx-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+  .fx-item { background: #f8fafc; border-radius: 8px; padding: 10px 16px; }
+  .fx-item .fl { font-size: 11px; color: #64748b; }
+  .fx-item .fv { font-size: 15px; font-weight: 700; }
+
+  .holdings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .holdings-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid #f1f5f9; background: #f8fafc; }
+  .holdings-table th.right, .holdings-table td.right { text-align: right; }
+  .holdings-table td { padding: 9px 10px; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+  .holdings-table tr:hover td { background: #fafbff; }
+  .holdings-table .group-header td { background: #f1f5f9; font-weight: 700; font-size: 12px; color: #475569; text-transform: uppercase; letter-spacing: 0.3px; padding: 7px 10px; }
+  .holdings-table .subtotal td { background: #f8fafc; font-weight: 700; border-top: 2px solid #e2e8f0; }
+  .holdings-table .grand-total td { background: #0f172a; color: white; font-weight: 700; }
+  .code { font-weight: 700; color: #1d4ed8; font-family: monospace; font-size: 12px; }
+  .status-settled { color: #16a34a; font-size: 12px; }
+  .status-pending { color: #d97706; font-size: 12px; }
+  .pct-bar-cell { min-width: 80px; }
+  .pct-bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .pct-bar { height: 6px; background: #e2e8f0; border-radius: 3px; flex: 1; overflow: hidden; min-width: 60px; }
+  .pct-bar-fill { height: 100%; border-radius: 3px; }
+  .pct-text { font-size: 11px; color: #64748b; min-width: 36px; text-align: right; }
+
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 800px) { .charts-row { grid-template-columns: 1fr; } }
+  .chart-wrap { position: relative; height: 240px; }
+
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #475569; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .growth-chart-wrap { position: relative; height: 260px; }
+  .growth-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }
+  .growth-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; }
+  .legend-line { width: 20px; height: 3px; border-radius: 2px; }
+  .legend-bar { width: 14px; height: 10px; border-radius: 2px; }
+
+  .footer { text-align: center; padding: 20px 28px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Very Next Pty Ltd — Investment Club Portfolio</h1>
+    <div class="sub">NAB Equity Lending Facility · NT2872688</div>
+  </div>
+  <div style="text-align:right;">
+    <div style="color:#94a3b8;font-size:13px;">As at 16 Jul 2026, 5:44 PM AEST</div>
+    <div style="color:#64748b;font-size:11px;margin-top:3px;">ASX real-time · International 15-min delay</div>
+  </div>
+</div>
+
+<div class="summary-bar">
+  <div class="summary-item">
+    <span class="label">Gross Portfolio</span>
+    <span class="value">$3,191,224</span>
+    <span class="change pos">+$7,125 (+0.23%) today</span>
+  </div>
+  <div class="summary-item">
+    <span class="label">Australian Holdings</span>
+    <span class="value" style="color:#22d3ee;">$478,590</span>
+    <span class="change neg">−$3,010 (−0.63%) today</span>
+  </div>
+  <div class="summary-item">
+    <span class="label">International Holdings</span>
+    <span class="value" style="color:#6366f1;">$2,712,635</span>
+    <span class="change pos">+$10,135 (+0.38%) today</span>
+  </div>
+  <div class="summary-item">
+    <span class="label">Loan Outstanding</span>
+    <span class="value" style="color:#f87171;">$644,614</span>
+    <span class="change neutral">Facility 36188</span>
+  </div>
+  <div class="summary-item">
+    <span class="label">Net Equity</span>
+    <span class="value" style="color:#4ade80;">$2,546,610</span>
+    <span class="change neutral">Gross − Loan</span>
+  </div>
+  <div class="summary-item">
+    <span class="label">Current LVR</span>
+    <span class="value">20.69%</span>
+    <span class="change pos">Well below margin call (55.22%)</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <div class="top-row">
+    <div class="card">
+      <h2>📊 Loan Facility — NAB Equity Lending (36188)</h2>
+      <div class="facility-grid">
+        <div class="facility-item">
+          <div class="fl">Security Value</div>
+          <div class="fv">$1,564,608</div>
+        </div>
+        <div class="facility-item">
+          <div class="fl">Total Loan Outstanding</div>
+          <div class="fv">$644,614</div>
+        </div>
+        <div class="facility-item highlight">
+          <div class="fl">Available Funds</div>
+          <div class="fv">$355,386</div>
+        </div>
+        <div class="facility-item">
+          <div class="fl">Base LVR</div>
+          <div class="fv">50.22%</div>
+        </div>
+        <div class="facility-item warn">
+          <div class="fl">Margin Call LVR</div>
+          <div class="fv">55.22%</div>
+        </div>
+        <div class="facility-item highlight">
+          <div class="fl">Current LVR</div>
+          <div class="fv" style="color:#16a34a;">20.69% ✓</div>
+        </div>
+        <div class="facility-item" style="grid-column:1/-1;background:#f0fdf4;">
+          <div class="fl">Net Equity Value (Facility)</div>
+          <div class="fv" style="color:#16a34a;font-size:20px;">$2,470,681</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>💱 FX Rates (NABtrade)</h2>
+      <div class="fx-grid" style="margin-bottom:18px;">
+        <div class="fx-item">
+          <div class="fl">AUD/USD</div>
+          <div class="fv">0.6954</div>
+        </div>
+        <div class="fx-item">
+          <div class="fl">AUD/GBP</div>
+          <div class="fv">0.5137</div>
+        </div>
+        <div class="fx-item">
+          <div class="fl">AUD/HKD</div>
+          <div class="fv">5.4511</div>
+        </div>
+      </div>
+      <h2>💰 Cash Accounts</h2>
+      <div class="fx-grid">
+        <div class="fx-item">
+          <div class="fl">Cash Account (NT2872688-001)</div>
+          <div class="fv">$6,609.63</div>
+        </div>
+        <div class="fx-item">
+          <div class="fl">High Interest Account (NT2872688-005)</div>
+          <div class="fv">$0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📋 Holdings</h2>
+    <div style="overflow-x:auto;">
+    <table class="holdings-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Description</th>
+          <th class="right">Qty</th>
+          <th class="right">Mkt Price</th>
+          <th class="right">Mkt Value (Local)</th>
+          <th class="right">Mkt Value (AUD)</th>
+          <th class="right" style="min-width:120px;">% Portfolio</th>
+          <th class="right">Day Change (AUD)</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="group-header"><td colspan="9">🇦🇺 Australian Equities</td></tr>
+
+        <tr>
+          <td><span class="code">ARU.ASX</span></td>
+          <td>Arafura Rare Earths Ltd</td>
+          <td class="right">642,084</td>
+          <td class="right">$0.215</td>
+          <td class="right">$138,048</td>
+          <td class="right">$138,048</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:4.33%;background:#22d3ee;"></div></div><span class="pct-text">4.33%</span></div></td>
+          <td class="right neg">−$3,210 (−2.27%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">SRL.ASX</span></td>
+          <td>Sunrise Energy Metals Ltd</td>
+          <td class="right">1,667</td>
+          <td class="right">$16.94</td>
+          <td class="right">$28,239</td>
+          <td class="right">$28,239</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:0.88%;background:#22d3ee;"></div></div><span class="pct-text">0.88%</span></div></td>
+          <td class="right pos">+$200 (+0.71%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">TBN.ASX</span></td>
+          <td>Tamboran Resources Corp</td>
+          <td class="right">1,388,011</td>
+          <td class="right">$0.225</td>
+          <td class="right">$312,302</td>
+          <td class="right">$312,302</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:9.79%;background:#22d3ee;"></div></div><span class="pct-text">9.79%</span></div></td>
+          <td class="right neutral">$0 (0.00%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr class="subtotal">
+          <td colspan="5"><strong>Australian Equities Subtotal</strong></td>
+          <td class="right"><strong>$478,590</strong></td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:15%;background:#22d3ee;"></div></div><span class="pct-text"><strong>15.00%</strong></span></div></td>
+          <td class="right neg"><strong>−$3,010 (−0.63%)</strong></td>
+          <td></td>
+        </tr>
+
+        <tr class="group-header"><td colspan="9">🌐 International Equities</td></tr>
+
+        <tr>
+          <td><span class="code">AAPL.NAS</span></td>
+          <td>Apple Inc</td>
+          <td class="right">961</td>
+          <td class="right">$327.50 USD</td>
+          <td class="right">$314,728 USD</td>
+          <td class="right">$452,619</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:14.18%;background:#6366f1;"></div></div><span class="pct-text">14.18%</span></div></td>
+          <td class="right pos">+$17,474 (+4.01%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">AMZN.NAS</span></td>
+          <td>Amazon.com Inc</td>
+          <td class="right">322</td>
+          <td class="right">$254.96 USD</td>
+          <td class="right">$82,097 USD</td>
+          <td class="right">$118,063</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:3.70%;background:#6366f1;"></div></div><span class="pct-text">3.70%</span></div></td>
+          <td class="right pos">+$3,459 (+3.02%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">GEV.NYS</span></td>
+          <td>GE Vernova Inc</td>
+          <td class="right">179</td>
+          <td class="right">$1,055.28 USD</td>
+          <td class="right">$188,895 USD</td>
+          <td class="right">$271,652</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:8.51%;background:#6366f1;"></div></div><span class="pct-text">8.51%</span></div></td>
+          <td class="right neg">−$2,762 (−1.01%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">GOOGL.NAS</span></td>
+          <td>Alphabet Inc (Class A)</td>
+          <td class="right">402</td>
+          <td class="right">$370.92 USD</td>
+          <td class="right">$149,110 USD</td>
+          <td class="right">$214,457</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:6.72%;background:#6366f1;"></div></div><span class="pct-text">6.72%</span></div></td>
+          <td class="right pos">+$6,599 (+3.17%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">GS.NYS</span></td>
+          <td>Goldman Sachs Group Inc</td>
+          <td class="right">101</td>
+          <td class="right">$1,152.07 USD</td>
+          <td class="right">$116,359 USD</td>
+          <td class="right">$167,361</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:5.24%;background:#6366f1;"></div></div><span class="pct-text">5.24%</span></div></td>
+          <td class="right pos">+$1,754 (+1.06%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">MNTN.NYS</span> <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:4px;margin-left:4px;">NEW</span></td>
+          <td>MNTN Inc (Performance TV)</td>
+          <td class="right">2,001</td>
+          <td class="right">$10.16 USD</td>
+          <td class="right">$20,330 USD</td>
+          <td class="right">$29,238</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:0.92%;background:#6366f1;"></div></div><span class="pct-text">0.92%</span></div></td>
+          <td class="right pos">+$86 (+0.30%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">MSFT.NAS</span></td>
+          <td>Microsoft Corp</td>
+          <td class="right">282</td>
+          <td class="right">$395.63 USD</td>
+          <td class="right">$111,568 USD</td>
+          <td class="right">$160,491</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:5.03%;background:#6366f1;"></div></div><span class="pct-text">5.03%</span></div></td>
+          <td class="right pos">+$4,340 (+2.78%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">MU.NAS</span></td>
+          <td>Micron Technology Inc</td>
+          <td class="right">103</td>
+          <td class="right">$904.28 USD</td>
+          <td class="right">$93,141 USD</td>
+          <td class="right">$133,986</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:4.20%;background:#6366f1;"></div></div><span class="pct-text">4.20%</span></div></td>
+          <td class="right neg">−$11,681 (−8.02%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">NVDA.NAS</span></td>
+          <td>NVIDIA Corp</td>
+          <td class="right">933</td>
+          <td class="right">$212.50 USD</td>
+          <td class="right">$198,263 USD</td>
+          <td class="right">$285,149</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:8.94%;background:#6366f1;"></div></div><span class="pct-text">8.94%</span></div></td>
+          <td class="right pos">+$939 (+0.33%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">TSM.NYS</span></td>
+          <td>Taiwan Semiconductor Mfg Co Ltd</td>
+          <td class="right">487</td>
+          <td class="right">$419.48 USD</td>
+          <td class="right">$204,287 USD</td>
+          <td class="right">$293,825</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:9.21%;background:#6366f1;"></div></div><span class="pct-text">9.21%</span></div></td>
+          <td class="right neg">−$637 (−0.22%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">RR..LSE</span></td>
+          <td>Rolls-Royce Holdings PLC</td>
+          <td class="right">17,774</td>
+          <td class="right">£13.83 GBP</td>
+          <td class="right">£245,850 GBP</td>
+          <td class="right">$478,613</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:15%;background:#6366f1;"></div></div><span class="pct-text">15.00%</span></div></td>
+          <td class="right neg">−$2,836 (−0.59%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr>
+          <td><span class="code">0992.HKE</span></td>
+          <td>Lenovo Group Ltd</td>
+          <td class="right">26,000</td>
+          <td class="right">HK$22.42</td>
+          <td class="right">HK$582,920</td>
+          <td class="right">$106,948</td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:3.35%;background:#6366f1;"></div></div><span class="pct-text">3.35%</span></div></td>
+          <td class="right neg">−$6,866 (−6.04%)</td>
+          <td><span class="status-settled">✅ Settled</span></td>
+        </tr>
+
+        <tr class="subtotal">
+          <td colspan="5"><strong>International Equities Subtotal</strong></td>
+          <td class="right"><strong>$2,712,635</strong></td>
+          <td class="right pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar"><div class="pct-bar-fill" style="width:85%;background:#6366f1;"></div></div><span class="pct-text"><strong>85.00%</strong></span></div></td>
+          <td class="right pos"><strong>+$10,135 (+0.38%)</strong></td>
+          <td></td>
+        </tr>
+
+        <tr class="grand-total">
+          <td colspan="5"><strong>TOTAL GROSS PORTFOLIO</strong></td>
+          <td class="right"><strong>$3,191,225</strong></td>
+          <td class="right"><strong>100.00%</strong></td>
+          <td class="right" style="color:#4ade80;"><strong>+$7,125 (+0.23%)</strong></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="card">
+      <h2>🏭 Sector Concentration</h2>
+      <div class="chart-wrap"><canvas id="sectorChart"></canvas></div>
+      <div class="chart-legend" id="sectorLegend"></div>
+    </div>
+    <div class="card">
+      <h2>🌍 Country Concentration</h2>
+      <div class="chart-wrap"><canvas id="countryChart"></canvas></div>
+      <div class="chart-legend" id="countryLegend"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📈 30-Day Portfolio Growth</h2>
+    <div class="growth-chart-wrap"><canvas id="chart30d"></canvas></div>
+    <div class="growth-legend">
+      <div class="growth-legend-item"><div class="legend-bar" style="background:#22d3ee;"></div> Australian Holdings</div>
+      <div class="growth-legend-item"><div class="legend-bar" style="background:#6366f1;"></div> International Holdings</div>
+      <div class="growth-legend-item"><div class="legend-line" style="background:#0f172a;height:2px;"></div> Gross Portfolio</div>
+      <div class="growth-legend-item"><div class="legend-line" style="background:repeating-linear-gradient(90deg,#16a34a 0,#16a34a 5px,transparent 5px,transparent 9px);"></div> Net Equity (Gross − Loan)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📈 12-Month Portfolio History</h2>
+    <div class="growth-chart-wrap"><canvas id="chart12m"></canvas></div>
+    <div class="growth-legend">
+      <div class="growth-legend-item"><div class="legend-bar" style="background:#22d3ee;"></div> Australian Holdings</div>
+      <div class="growth-legend-item"><div class="legend-bar" style="background:#6366f1;"></div> International Holdings</div>
+      <div class="growth-legend-item"><div class="legend-line" style="background:#0f172a;height:2px;"></div> Gross Portfolio</div>
+      <div class="growth-legend-item"><div class="legend-line" style="background:repeating-linear-gradient(90deg,#16a34a 0,#16a34a 5px,transparent 5px,transparent 9px);"></div> Net Equity (Gross − Loan)</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Very Next Pty Ltd Investment Club · Dashboard updated 16 July 2026 ·
+  NABtrade account NT2872688 · NAB Equity Lending Facility 36188 ·
+  Prices are indicative; international quotes may be delayed up to 15 minutes.
+</div>
+
+<script>
+const HISTORY = [{"date":"2026-06-05","label":"5 Jun","australian":569174,"international":2977872,"gross":3547046,"loan":862664},{"date":"2026-07-16","label":"16 Jul","australian":478590,"international":2712635,"gross":3191225,"loan":644614}];
+
+// Doughnut charts
+const SECTOR_DATA = { 'Technology':1676713, 'Industrials':750265, 'Energy':340541, 'Materials':138048, 'Financials':167361, 'Consumer Disc.':118063 };
+const COUNTRY_DATA = { 'USA':1833015, 'UK':478613, 'Australia':478590, 'Taiwan':293825, 'China/HK':106948 };
+const SECTOR_COLORS = ['#6366f1','#f59e0b','#22d3ee','#84cc16','#3b82f6','#f97316'];
+const COUNTRY_COLORS = ['#6366f1','#ef4444','#22d3ee','#f59e0b','#ec4899'];
+
+function buildDoughnut(canvasId, legendId, labels, values, colors) {
+  const total = values.reduce((a,b)=>a+b,0);
+  const fmt = v => '$'+(v>=1000000?(v/1000000).toFixed(2)+'M':(v/1000).toFixed(0)+'K');
+  new Chart(document.getElementById(canvasId).getContext('2d'), {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderWidth:2, borderColor:'white' }] },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>' '+ctx.label+': '+fmt(ctx.parsed)+' ('+(ctx.parsed/total*100).toFixed(1)+'%)' } } }
+    }
+  });
+  const el = document.getElementById(legendId);
+  labels.forEach((l,i) => {
+    const div = document.createElement('div');
+    div.className='legend-item';
+    div.innerHTML<`<div class="legend-dot" style="background:${colors[i]};"></div>${l} ${(values[i]/total*100).toFixed(1)}%`;
+    el.appendChild(div);
+  });
+}
+buildDoughnut('sectorChart','sectorLegend',Object.keys(SECTOR_DATA),Object.values(SECTOR_DATA),SECTOR_COLORS);
+buildDoughnut('countryChart','countryLegend',Object.keys(COUNTRY_DATA),Object.values(COUNTRY_DATA),COUNTRY_COLORS);
+
+// Growth charts
+function buildGrowthChart(canvasId, data) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const fmt = v => '$'+(v>=1000000?(v/1000000).toFixed(2)+'M':(v/1000).toFixed(0)+'K');
+  const pr = data.length === 1 ? 5 : 3;
+  new Chart(ctx.getContext('2d'), {
+    type:'bar',
+    data:{
+      labels:data.map(d=>d.label),
+      datasets:[
+        { type:'bar', label:'Australian Holdings', data:data.map(d=>d.australian), backgroundColor:'#22d3ee', stack:'portfolio', yAxisID:'y', order:2 },
+        { type:'bar', label:'International Holdings', data:data.map(d=>d.international), backgroundColor:'#6366f1', stack:'portfolio', yAxisID:'y', order:2 },
+        { type:'line', label:'Gross Portfolio', data:data.map(d=>d.gross), borderColor:'#0f172a', backgroundColor:'transparent', borderWidth:2, pointRadius:pr, pointBackgroundColor:'#0f172a', tension:0.3, yAxisID:'yLine', order:1 },
+        { type:'line', label:'Net Equity (Gross − Loan)', data:data.map(d=>d.gross-d.loan), borderColor:'#16a34a', backgroundColor:'transparent', borderWidth:2, borderDash:[5,4], pointRadius:pr, pointBackgroundColor:'#16a34a', tension:0.3, yAxisID:'yLine', order:1 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx=>' '+ctx.dataset.label+': '+fmt(ctx.parsed.y) } } },
+      scales:{
+        x:{ stacked:true, grid:{display:false}, ticks:{font:{size:10},color:'#94a3b8'} },
+        y:{ stacked:true, position:'left', grid:{color:'#f1f5f9'}, ticks:{font:{size:10},color:'#94a3b8',callback:v=>fmt(v)} },
+        yLine:{ stacked:false, position:'left', display:false, min:0 }
+      }
+    }
+  });
+}
+
+buildGrowthChart('chart30d', HISTORY.slice(-30));
+const byMonth = {};
+HISTORY.forEach(d => { byMonth[d.date.slice(0,7)] = d; });
+const data12m = Object.values(byMonth).sort((a,b)=>a.date.localeCompare(b.date)).slice(-12)
+  .map(d => ({...d, label:new Date(d.date+'T00:00:00').toLocaleDateString('en-AU',{month:'short',year:'2-digit'})}));
+buildGrowthChart('chart12m', data12m);
+</script>
+</body>
+</html>
